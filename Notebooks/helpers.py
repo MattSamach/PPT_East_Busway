@@ -47,8 +47,8 @@ def oneHot(dFrame, col):
     are one-hot encoded.
     '''
     print('{0} col has {1} unique vals'.format(col, dFrame[col].nunique()))
-    onehot = data[col].str.get_dummies("|")
-    newframe = pd.concat([dFrame, onehot],axis=1)
+    onehot = dFrame[col].str.get_dummies("|")
+    newframe = pd.concat([dFrame, onehot], axis=1)
     return(newframe)
 
 def aggregateFromTo(dFrame, from_col = 'From', to_col = 'To'):
@@ -71,10 +71,10 @@ def sankeyFormat(dFrame, col_indeces):
     Function that takes in a data frame in the format that the original survey data comes in, as well as two
     column indeces and returns a dataframe with data aggregated into format for Sankey diagrams.
     '''
-    
+
     if len(col_indeces) != 2:
         print("Column indeces should only have 2 items")
-        return 
+        return
 
     dFrame = firstNormal(dFrame = dFrame, col_indeces = col_indeces)
     agg_dFrame = aggregateFromTo(dFrame, from_col=dFrame.columns[0],
@@ -95,12 +95,12 @@ def sankeyFormat(dFrame, col_indeces):
     n_blank = agg_dFrame.shape[0] - len(labels)
     labels = np.append(labels, [""] * n_blank)
     agg_dFrame['Label'] = labels
-    
+
     return agg_dFrame
 
 def drawSankey(dFrame, title = ""):
     '''
-    Wrapper function that takes data (must be submitted in the format given by sankeyFormat helper function) and 
+    Wrapper function that takes data (must be submitted in the format given by sankeyFormat helper function) and
     draws the Sankey diagram. Use iplot(fig, validate=False) to actually see the plot.
     '''
     # Creating a data frame just with nodes for our Sankey plot
@@ -149,9 +149,46 @@ def drawSankey(dFrame, title = ""):
         width = 1000,
         font = dict(
           size = 15
-        ),    
+        ),
     )
 
     fig = dict(data=[data_trace], layout=layout)
 
     return fig
+
+def placeMatcher(placelist, gislist):
+    '''
+    Takes in a location column and returns a matcher to a GIS asset or larger regional association
+    '''
+    # List for dicts for easy dataframe creation
+    dict_list = []
+
+    unusual_match = {'2434 south braddock ave': 'SWISSVALE',
+                     'mck': 'MCKEESPORT',
+                     'mon valley': ''}
+    # iterating over our "Before" survey column names
+    for place in placelist:
+        # New dict for storing data
+        dict_ = {}
+
+        if place in unusual_match.keys():
+            match = (unusual_match[place], 100)
+        # Use our method to find best match, we can set a threshold here
+        else:
+            match = process.extractOne(place, gislist,  scorer=fuzz.ratio)#, score_cutoff = 60)
+
+        dict_.update({"from_ppt" : place})
+        dict_.update({"from_gis" : match[0]})
+        dict_.update({"score" : match[1]})
+        dict_list.append(dict_)
+
+        from_matches = pd.DataFrame(dict_list)
+    return(from_matches)
+
+def find_unique_loc(dFrame, col):
+    #locDict = {}
+    locs = []
+    for i in range(dFrame.shape[0]):
+        cell_list = [x.strip() for x in dFrame[col].loc[i].split("|")]
+        locs = locs + cell_list
+    return(set(locs))
