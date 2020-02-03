@@ -156,35 +156,6 @@ def drawSankey(dFrame, title = ""):
 
     return fig
 
-def placeMatcher(placelist, gislist):
-    '''
-    Takes in a location column and returns a matcher to a GIS asset or larger regional association
-    '''
-    # List for dicts for easy dataframe creation
-    dict_list = []
-
-    unusual_match = {'2434 south braddock ave': 'SWISSVALE',
-                     'mck': 'MCKEESPORT',
-                     'mon valley': ''}
-    # iterating over our "Before" survey column names
-    for place in placelist:
-        # New dict for storing data
-        dict_ = {}
-
-        if place in unusual_match.keys():
-            match = (unusual_match[place], 100)
-        # Use our method to find best match, we can set a threshold here
-        else:
-            match = process.extractOne(place, gislist,  scorer=fuzz.ratio)#, score_cutoff = 60)
-
-        dict_.update({"from_ppt" : place})
-        dict_.update({"from_gis" : match[0]})
-        dict_.update({"score" : match[1]})
-        dict_list.append(dict_)
-
-        from_matches = pd.DataFrame(dict_list)
-    return(from_matches)
-
 def find_unique_loc(dFrame, col):
     #locDict = {}
     locs = []
@@ -192,3 +163,77 @@ def find_unique_loc(dFrame, col):
         cell_list = [x.strip() for x in dFrame[col].loc[i].split("|")]
         locs = locs + cell_list
     return(set(locs))
+
+def countyMatcher(placelist, gisTown, gisType, gisAll):
+    '''
+    Takes in a location column and returns a matcher to a GIS asset
+    Matches on the strict name, then finds municipality type
+    '''
+    # List for dicts for easy dataframe creation
+    dict_list = []
+
+    unusual_match = {'2434 south braddock ave': ('SWISSVALE', 'Swissvale Borough', 'BOROUGH'),
+                     'mck': ('MCKEESPORT','McKeesport', 'CITY'),
+                     'mon valley': ('','',''),
+                     'Wexford': ('PINE', 'Pine Township', 'TOWNSHIP'),
+                     'Bethel Park Borough': ('BETHEL PARK', 'Bethel Park Municipality', 'MUNICIPALI'),
+                     'Pittsburgh': ('PITTSBURGH', 'Pittsburgh', 'CITY')}
+    # extracting municipality type
+    p = re.compile("(Township|Borough|Municipality|City)")
+    # Iterating over nonpgh places
+    for place in placelist:
+        # New dict for storing data
+        dict_ = {}
+        # Find muni type first
+
+        # Replace pittsburgh:
+        if re.search('Pittsburgh', place, re.IGNORECASE):
+            mName = (unusual_match['Pittsburgh'][0], 100)
+            aMatch = (unusual_match['Pittsburgh'][1], 100)
+            tMatch = (unusual_match['Pittsburgh'][2], 100)
+        # Take out messy matches o
+        elif place in unusual_match.keys():
+            mName = (unusual_match[place][0], 100)
+            aMatch = (unusual_match[place][1], 100)
+            tMatch = (unusual_match[place][2], 100)
+        # Use our method to find best match, we can set a threshold here
+        else:
+            type_result = p.search(place, re.IGNORECASE)
+            if type_result:
+                muni_type = type_result.group(1)
+                tMatch = process.extractOne(muni_type, gisType, scorer=fuzz.ratio)
+            else:
+                tMatch = ('', 100)
+            mName = process.extractOne(place, gisTown,  scorer=fuzz.ratio)#, score_cutoff = 60)
+            aMatch = process.extractOne(place, gisAll,  scorer=fuzz.ratio)
+
+        dict_.update({"from_ppt" : place})
+        dict_.update({"from_LabelGIS" : aMatch[0]})
+        dict_.update({"labelScore" : aMatch[1]})
+        dict_.update({"from_NameGIS" : mName[0]})
+        dict_.update({"nameScore" : mName[1]})
+        dict_.update({"from_TypeGIS" : tMatch[0]})
+        dict_.update({"typeScore" : tMatch[1]})
+        dict_list.append(dict_)
+
+    matches_all = pd.DataFrame(dict_list)
+    return(matches_all)
+
+def add_county_cat(dFrame, col, countyDF, prefix):
+    '''
+    Takes a cleaned dataframe and appends geographic information
+        at the county level
+    '''
+    loc_list = find_unique_loc(dFrame, col)
+    fromCounty = countyMatcher(loc_list, countyDF.NAME, countyDF.TYPE, countyDF.LABEL)
+    dataLoc = pd.merge(dFrame, fromCounty[['from_ppt','from_LabelGIS']],  how='left', left_on=[col], right_on = ['from_ppt'])
+    dataLoc = pd.merge(dataLoc,
+                        countyDF[['NAME', 'LABEL', 'TYPE', 'COG', 'FIPS', 'MUNICODE', 'OBJECTID']],
+                        left_on=['from_LabelGIS'], right_on = ['LABEL'])
+    dataLoc.drop(['from_ppt', 'NAME', 'from_LabelGIS', 'TYPE'], axis=1)
+    dataLoc = dataLoc.rename(columns={'COG': '{0}COG'.format(prefix), 'FIPS': '{0}FIPS'.format(prefix),
+                                      'LABEL': '{0}LABEL'.format(prefix),
+                                      'MUNICODE': '{0}MUNICODE'.format(prefix),
+                                      'OBJECTID': '{0}OBJECTID'.format(prefix)})
+    print('{0} unique regions'.format(dataLoc['{0}COG'.format(prefix)].nunique()))
+    return(dataLoc)
