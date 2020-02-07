@@ -116,6 +116,36 @@ def drawSankey(dFrame, title = ""):
     links_df = dFrame[['from_id', 'to_id', 'Count']]
     links_df.columns = ['Source', 'Target', 'Value']
     links_df = links_df.sort_values(by = ['Source', 'Target'])
+    
+    # # Want to color all links
+
+    colors = ['rgba(255, 250, 200, 1)',
+     'rgba(0, 130, 200, 0.3)',
+     'rgba(170, 255, 195, 0.3)',
+     'rgba(60, 180, 75, 0.3)',
+     'rgba(245, 130, 48, 0.3)',
+     'rgba(230, 190, 255, 0.3)',
+     'rgba(0, 128, 128, 0.3)',
+     'rgba(255, 215, 180, 0.3)',
+     'rgba(0, 0, 0, 0.3)',
+     'rgba(230, 25, 75, 0.3)',
+     'rgba(70, 240, 240, 0.3)',
+     'rgba(128, 128, 0, 0.3)',
+     'rgba(0, 0, 128, 0.3)',
+     'rgba(145, 30, 180, 0.3)',
+     'rgba(210, 245, 60, 0.3)',
+     'rgba(255, 225, 25, 0.3)',
+     'rgba(128, 128, 128, 0.3)',
+     'rgba(170, 110, 40, 0.3)',
+     'rgba(250, 190, 190, 0.3)',
+     'rgba(128, 0, 0, 0.3)',
+     'rgba(240, 50, 230, 0.3)',
+     'rgba(255, 255, 255, 0.3)']
+
+    colors_trim = colors[:from_nodes.shape[0]]
+    colors_df = from_nodes.copy()
+    colors_df['Color'] = colors_trim
+    links_df = pd.merge(links_df, colors_df, left_on='Source', right_on='Node')
 
     # Drawing Sankey
     data_trace = dict(
@@ -139,7 +169,8 @@ def drawSankey(dFrame, title = ""):
         link = dict(
           source = links_df['Source'].dropna(axis=0, how='any'),
           target = links_df['Target'].dropna(axis=0, how='any'),
-          value = links_df['Value'].dropna(axis=0, how='any')
+          value = links_df['Value'].dropna(axis=0, how='any'),
+          color = links_df['Color'].dropna(axis=0, how='any')
       )
     )
 
