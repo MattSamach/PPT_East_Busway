@@ -8,7 +8,12 @@ import itertools
 def clean(data):
     data = data.replace('(\',)|(\",)', '|',regex=True)
     data = data.replace('[\[\]\"\']', '',regex=True)
+    data = clean_columns(data)
     return(data)
+
+def clean_columns(data):
+    data.columns = [c.split("-")[1].strip().replace(" ", "_") for c in data.columns]
+    return (data)
 
 def firstNormal(dFrame, col_indeces = []):
     '''
