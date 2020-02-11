@@ -1,6 +1,6 @@
 
 # Jupyter
-.ipynb_checkpoints/
+.ipynb_checkpoints
 
 # Mac/OSX
 .DS_Store
@@ -27,7 +27,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
-
