@@ -4,6 +4,8 @@ from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import numpy as np
 import warnings
 import itertools
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import figure
 
 def clean(data):
     data = data.replace('(\',)|(\",)', '|',regex=True)
@@ -12,7 +14,8 @@ def clean(data):
     return(data)
 
 def clean_columns(data):
-    data.columns = [c.split("-")[1].strip().replace(" ", "_") for c in data.columns]
+    data.columns = [c.split("-")[1].strip().replace(" ", "_") if (len(c.split("-")) > 1) else
+                    c.strip().replace(" ", "_") for c in data.columns]
     return (data)
 
 def firstNormal(dFrame, col_indeces = []):
@@ -122,35 +125,46 @@ def drawSankey(dFrame, title = ""):
     links_df.columns = ['Source', 'Target', 'Value']
     links_df = links_df.sort_values(by = ['Source', 'Target'])
     
+    # Ranking source ranks
+    source_ranks = links_df.groupby('Source').rank(ascending = False)
+    links_df['Rank'] = source_ranks.Value
+    
     # # Want to color all links
 
-    colors = ['rgba(255, 250, 200, 1)',
-     'rgba(0, 130, 200, 0.3)',
-     'rgba(170, 255, 195, 0.3)',
-     'rgba(60, 180, 75, 0.3)',
-     'rgba(245, 130, 48, 0.3)',
-     'rgba(230, 190, 255, 0.3)',
-     'rgba(0, 128, 128, 0.3)',
-     'rgba(255, 215, 180, 0.3)',
-     'rgba(0, 0, 0, 0.3)',
-     'rgba(230, 25, 75, 0.3)',
-     'rgba(70, 240, 240, 0.3)',
-     'rgba(128, 128, 0, 0.3)',
-     'rgba(0, 0, 128, 0.3)',
-     'rgba(145, 30, 180, 0.3)',
-     'rgba(210, 245, 60, 0.3)',
-     'rgba(255, 225, 25, 0.3)',
-     'rgba(128, 128, 128, 0.3)',
-     'rgba(170, 110, 40, 0.3)',
-     'rgba(250, 190, 190, 0.3)',
-     'rgba(128, 0, 0, 0.3)',
-     'rgba(240, 50, 230, 0.3)',
-     'rgba(255, 255, 255, 0.3)']
-
+    colors = ['rgba(255, 250, 200,',
+     'rgba(0, 130, 200,',
+     'rgba(170, 255, 195,',
+     'rgba(60, 180, 75,',
+     'rgba(245, 130, 48,',
+     'rgba(230, 190, 255,',
+     'rgba(0, 128, 128,',
+     'rgba(255, 215, 180,',
+     'rgba(0, 0, 0,',
+     'rgba(230, 25, 75,',
+     'rgba(70, 240, 240,',
+     'rgba(128, 128, 0,',
+     'rgba(0, 0, 128,',
+     'rgba(145, 30, 180,',
+     'rgba(210, 245, 60,',
+     'rgba(255, 225, 25,',
+     'rgba(128, 128, 128,',
+     'rgba(170, 110, 40,',
+     'rgba(250, 190, 190,',
+     'rgba(128, 0, 0,',
+     'rgba(240, 50, 230,',
+     'rgba(255, 255, 255,']
+    
+    # Formating the  colors to only have the lenght of nodes (Plotly Sankey formatting)
     colors_trim = colors[:from_nodes.shape[0]]
     colors_df = from_nodes.copy()
     colors_df['Color'] = colors_trim
+    
+    # Merging colors to links df
     links_df = pd.merge(links_df, colors_df, left_on='Source', right_on='Node')
+    
+    # Making it so that 
+    links_df['Color'] = [links_df.Color[i] + '0.9)' if (links_df.Rank[i]==1.0 or links_df.Rank[i]==2.0) else 
+                     links_df.Color[i] + '0.3)'for i in range(links_df.shape[0])]
 
     # Drawing Sankey
     data_trace = dict(
@@ -184,7 +198,7 @@ def drawSankey(dFrame, title = ""):
         height = 850,
         width = 1000,
         font = dict(
-          size = 15
+          size = 13
         ),
     )
 
@@ -273,3 +287,78 @@ def add_county_cat(dFrame, col, countyDF, prefix):
                                       'OBJECTID': '{0}OBJECTID'.format(prefix)})
     print('{0} unique regions'.format(dataLoc['{0}COG'.format(prefix)].nunique()))
     return(dataLoc)
+
+def category_percents(dFrame, cat_name="", val_name="", cat_index="", val_index=""):
+    '''
+    Takes a pandas data frame, a categorical column (given either by name or by index) and value column 
+    (also given by name or index.) Then calculates the percentage share of all the different values in the
+    value column for each category.
+    '''
+    if cat_index == "":
+        cat = cat_name
+    else:
+        cat = dFrame.columns[cat_index]
+
+    if val_index == "":
+        val = val_name
+    else:
+        val = dFrame.columns[val_index]
+
+    # Get total count of each category
+    cat_count = dFrame.groupby(cat, as_index = False).count().iloc[:, :2]
+    cat_count.columns = [cat, "Total"]
+
+    # Get count of each value within each category
+    val_count = dFrame.groupby([cat, val], as_index = False).count().iloc[:, :3]
+    val_count.columns = [cat, val, "Count"]
+
+    # Merge two dataframes together and get within group percentages
+    final_df = pd.merge(cat_count, val_count, on = cat)
+    final_df['Share'] = final_df.Count/final_df.Total * 100
+    return final_df
+
+def graph_percent_bars(dFrame, cat_name, val_name, share_name):
+    '''
+    Takes a dataframe, a category or grouping name (cat_name), a val_name (the column which shares are split over),
+    and the name of the share (or percent) column. Returns a stacked bar chart comapring shares of the values 
+    across the different categories.
+    '''
+    cats = dFrame[cat_name].unique()
+    vals = dFrame[val_name].unique()
+    
+    # First fill a list of lists with all values
+    list_of_lists = []
+    
+    # Looping through all value types and category types, getting the percentages
+    for i in range(len(vals)):
+        shares_list = []
+        filtered = dFrame[dFrame[val_name] == vals[i]]
+        
+        for j in range(len(cats)):
+            
+            # Check that this value type exists within this category. If it doesn't append 0 to shares_list
+            
+            if filtered[filtered[cat_name] == cats[j]].shape[0] == 0:
+                shares_list.append(0)
+            else:
+                shares_list.append(list(filtered[filtered[cat_name] == cats[j]][share_name])[0])
+                
+        list_of_lists.append(shares_list)
+    
+    # Getting to graphing
+    
+    ind = range(len(cats))
+    width = 0.5
+    
+    tracker = [0 for x in range(len(list_of_lists[0]))]
+    plt_dict = dict()
+    
+    figure(num=None, figsize=(10, 7), dpi=80, facecolor='w', edgecolor='k')
+
+    for i in range(len(list_of_lists)):
+        plt_dict[i] = plt.bar(ind, list_of_lists[i], width, bottom=tracker)
+        tracker = [a + b for a, b in zip(tracker, list_of_lists[i])]
+    
+    plt.ylabel('Percent')
+    plt.xticks(ind, cats, rotation=-80)
+    plt.legend(vals, bbox_to_anchor = (1.7,0.7), loc = 'upper right')
