@@ -1,0 +1,8 @@
+Question,GeoJSON
+3 - Area of interest,ppt_concept_areas.json
+4 - Communities of interest,ppt_concept_communities.json
+5 - Destinations,ppt_concept_areas_destinations.json
+6 - Corridor preference,ppt_concept_routes.json
+7 - Pittsburgh areas,ppt_concept_regions_pgh.json
+8 - Allegheny County areas,ppt_concept_regions_ac.json
+9 - PAAC Routes Used,paac_routes.json
