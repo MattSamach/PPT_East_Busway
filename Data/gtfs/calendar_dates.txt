@@ -1,0 +1,13 @@
+service_id,date,exception_type
+2003-Collier-Weekday-35,20200625,2
+2003-Collier-Sunday-17,20200625,1
+2003-Liberty-Weekday-35,20200625,2
+2003-Liberty-Sunday-15,20200625,1
+2003-Mifflin-Weekday-36,20200625,2
+2003-Mifflin-Sunday-15,20200625,1
+2003-Ross-Weekday-35,20200625,2
+2003-Ross-Sunday-17,20200625,1
+2003-Village-Weekday-40,20200625,2
+2003-Village-Sunday-15,20200625,1
+W,20200625,2
+U,20200625,1
