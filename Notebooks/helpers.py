@@ -231,7 +231,6 @@ def drawSankey(dFrame, title = ""):
 
     colors = ['rgba(200, 150, 70,', # changed this one
      'rgba(0, 130, 200,',
-     'rgba(170, 255, 195,',
      'rgba(60, 180, 75,',
      'rgba(245, 130, 48,',
      'rgba(230, 190, 255,',
@@ -250,15 +249,21 @@ def drawSankey(dFrame, title = ""):
      'rgba(250, 190, 190,',
      'rgba(128, 0, 0,',
      'rgba(240, 50, 230,',
-     'rgba(255, 255, 255,']
+     'rgba(255, 255, 255,',
+     'rgba(170, 255, 195,']
 
-    # Formating the  colors to only have the lenght of nodes (Plotly Sankey formatting)
+    # Formating the colors to only have the length of nodes (Plotly Sankey formatting)
     colors_trim = colors[:from_nodes.shape[0]]
     colors_df = from_nodes.copy()
     colors_df['Color'] = colors_trim
+    
+    # Merging colors to nodes df
+    nodes_df = pd.merge(nodes_df, colors_df[['Node', 'Color']], on='Node', how = 'left')
+    nodes_df.Color = nodes_df.Color.apply(lambda x: x+"1)" if type(x) == str else x)
+    nodes_df.Color = nodes_df.Color.apply(lambda x: "rgba(200,200,200,0.8)" if type(x) == float else x)
 
     # Merging colors to links df
-    links_df = pd.merge(links_df, colors_df, left_on='Source', right_on='Node')
+    links_df = pd.merge(links_df, colors_df, left_on='Source', right_on='Node', )
     
     # Making it so that the largest links also have the heaviest color
     links_df['Color'] = [links_df.Color[i] + '0.9)' if (links_df.Rank[i]==1.0 or 
@@ -267,7 +272,7 @@ def drawSankey(dFrame, title = ""):
                                                         links_df.Rank[i]==2.5) else 
 
                      links_df.Color[i] + '0.3)'for i in range(links_df.shape[0])]
-
+    
     # Drawing Sankey
     if "Text" in links_df.columns:
         data_trace = dict(
@@ -285,6 +290,7 @@ def drawSankey(dFrame, title = ""):
                 width = 0
               ),
               label =  nodes_df['Label'].dropna(axis=0, how='any'),
+              color = nodes_df['Color'].dropna(axis=0, how = 'any')
 
             ),
 
@@ -314,6 +320,7 @@ def drawSankey(dFrame, title = ""):
                 width = 0
               ),
               label =  nodes_df['Label'].dropna(axis=0, how='any'),
+              color = nodes_df['Color'].dropna(axis=0, how = 'any')
 
             ),
 
@@ -338,7 +345,6 @@ def drawSankey(dFrame, title = ""):
     fig = dict(data=[data_trace], layout=layout)
 
     return fig
-
 def find_unique_loc(dFrame, col):
     #locDict = {}
     locs = []
