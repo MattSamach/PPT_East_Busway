@@ -12,6 +12,7 @@ pip-delete-this-directory.txt
 # Data Files
 Outputs/*
 APC/*
+*.csv
 
 # Distribution / packaging
 .Python
